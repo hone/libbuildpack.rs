@@ -5,7 +5,7 @@ use toml;
 
 use super::{
     config::Config,
-    env::{Env, Envs},
+    env::{EnvSet, Envs},
 };
 
 const BUILD_ENV_FOLDER: &str = "env.build";
@@ -16,8 +16,8 @@ pub struct Layer {
     // path to the root directory for the layer
     root: PathBuf,
     name: String,
-    config: Config,
-    envs: Envs,
+    pub config: Config,
+    pub envs: Envs,
 }
 
 impl Layer {
@@ -86,22 +86,22 @@ impl Layer {
             .and(self.write_env(LAUNCH_ENV_FOLDER, &self.envs.launch))
     }
 
-    fn write_env(&self, folder: &str, env: &Env) -> Result<(), std::io::Error> {
+    fn write_env(&self, folder: &str, env: &EnvSet) -> Result<(), std::io::Error> {
         let folder_path = &self.root.join(folder);
         std::fs::create_dir_all(&folder_path)?;
 
-        for (key, value) in env.append_path.iter() {
+        for (key, value) in env.append_path.vars() {
             let mut file = File::create(&folder_path.join(key))?;
             file.write_all(value.as_bytes())?;
         }
 
-        for (key, value) in env.append.iter() {
+        for (key, value) in env.append.vars() {
             let filename = format!("{}.append", key);
             let mut file = File::create(&folder_path.join(filename))?;
             file.write_all(value.as_bytes())?;
         }
 
-        for (key, value) in env.r#override.iter() {
+        for (key, value) in env.r#override.vars() {
             let filename = format!("{}.override", key);
             let mut file = File::create(&folder_path.join(filename))?;
             file.write_all(value.as_bytes())?;
@@ -216,15 +216,9 @@ foo = "bar"
         let mut build_env = &mut layer.envs.build;
         let env_folder = setup.root_path.join("env.build");
 
-        build_env
-            .append_path
-            .insert("FOO".to_string(), "foo".to_string());
-        build_env
-            .append
-            .insert("BAR".to_string(), "bar".to_string());
-        build_env
-            .r#override
-            .insert("BAZ".to_string(), "baz".to_string());
+        build_env.append_path.set_var("FOO", "foo");
+        build_env.append.set_var("BAR", "bar");
+        build_env.r#override.set_var("BAZ", "baz");
         assert!(layer.write_envs().is_ok());
         test_env_file(&env_folder.join("FOO"), "foo");
         test_env_file(&env_folder.join("BAR.append"), "bar");
@@ -238,15 +232,9 @@ foo = "bar"
         let mut launch_env = &mut layer.envs.launch;
         let env_folder = setup.root_path.join("env.launch");
 
-        launch_env
-            .append_path
-            .insert("FOO".to_string(), "foo".to_string());
-        launch_env
-            .append
-            .insert("BAR".to_string(), "bar".to_string());
-        launch_env
-            .r#override
-            .insert("BAZ".to_string(), "baz".to_string());
+        launch_env.append_path.set_var("FOO", "foo");
+        launch_env.append.set_var("BAR", "bar");
+        launch_env.r#override.set_var("BAZ", "baz");
         assert!(layer.write_envs().is_ok());
         test_env_file(&env_folder.join("FOO"), "foo");
         test_env_file(&env_folder.join("BAR.append"), "bar");
@@ -260,15 +248,9 @@ foo = "bar"
         let mut shared_env = &mut layer.envs.shared;
         let env_folder = setup.root_path.join("env");
 
-        shared_env
-            .append_path
-            .insert("FOO".to_string(), "foo".to_string());
-        shared_env
-            .append
-            .insert("BAR".to_string(), "bar".to_string());
-        shared_env
-            .r#override
-            .insert("BAZ".to_string(), "baz".to_string());
+        shared_env.append_path.set_var("FOO", "foo");
+        shared_env.append.set_var("BAR", "bar");
+        shared_env.r#override.set_var("BAZ", "baz");
         assert!(layer.write_envs().is_ok());
         test_env_file(&env_folder.join("FOO"), "foo");
         test_env_file(&env_folder.join("BAR.append"), "bar");
