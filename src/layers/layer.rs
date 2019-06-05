@@ -38,7 +38,7 @@ impl Layer {
         self.root.join(format!("{}.toml", &self.name))
     }
 
-    fn layer_path(&self) -> PathBuf {
+    pub fn layer_path(&self) -> PathBuf {
         self.root.join(&self.name)
     }
 
