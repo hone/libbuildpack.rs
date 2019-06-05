@@ -55,7 +55,10 @@ impl Layer {
     }
 
     pub fn read_metadata(&mut self) -> Result<(), std::io::Error> {
-        let mut file = File::open(&self.config_path())?;
+        let mut file = match File::open(&self.config_path()) {
+            Ok(file) => file,
+            Err(_) => return Ok(()),
+        };
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;
         self.config = toml::from_str(&contents).unwrap();
@@ -207,6 +210,14 @@ foo = "bar"
             layer.config.metadata_as_mut().get("foo").unwrap().as_str(),
             Some("bar")
         );
+    }
+
+    #[test]
+    fn it_reads_metadata_when_no_file() {
+        let mut setup = setup();
+        let layer = &mut setup.layer;
+        let read = layer.read_metadata();
+        assert!(read.is_ok());
     }
 
     #[test]
