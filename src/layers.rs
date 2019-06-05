@@ -1,7 +1,7 @@
 mod config;
 mod env;
 mod layer;
-use layer::Layer;
+pub use layer::Layer;
 
 const ROOT_LAYER_FOLDER: &str = "/layers";
 
