@@ -55,8 +55,10 @@ impl Env {
         self.env.iter()
     }
 
-    pub fn var(&self, key: &OsStr) -> Result<String, VarError> {
-        match &self.env.get(key) {
+    pub fn var<K: AsRef<OsStr>>(&self, key: K) -> Result<String, VarError> {
+        let key_ref = key.as_ref();
+
+        match &self.env.get(key_ref) {
             Some(value) => value
                 .as_os_str()
                 // only works if it's unicode
@@ -67,16 +69,17 @@ impl Env {
         }
     }
 
-    pub fn var_os(&self, key: &OsStr) -> Option<OsString> {
-        self.env.get(key).map(|value| OsString::from(value))
+    pub fn var_os<K: AsRef<OsStr>>(&self, key: K) -> Option<OsString> {
+        let key_as_ref = key.as_ref();
+
+        self.env.get(key_as_ref).map(|value| OsString::from(value))
     }
 
-    pub fn set_var(&mut self, key: &str, value: &str) {
-        &self.env.insert(OsString::from(key), OsString::from(value));
-    }
+    pub fn set_var<K: AsRef<OsStr>, V: AsRef<OsStr>>(&mut self, key: K, value: V) {
+        let key_os_string = key.as_ref().to_os_string();
+        let value_os_string = value.as_ref().to_os_string();
 
-    pub fn set_var_os(&mut self, key: &OsStr, value: &OsStr) {
-        &self.env.insert(key.to_os_string(), value.to_os_string());
+        &self.env.insert(key_os_string, value_os_string);
     }
 }
 
@@ -88,17 +91,23 @@ mod tests {
     fn it_gets_var() {
         let mut internal_env = HashMap::new();
         internal_env.insert(OsString::from("FOO"), OsString::from("foo"));
-        let env = Env { env: internal_env };
+        let mut env = Env { env: internal_env };
 
-        let value = env.var(OsStr::new("FOO"));
+        let value = env.var("FOO");
         assert!(value.is_ok());
         assert_eq!(value.unwrap(), String::from("foo"));
+
+        env.set_var("BAR", "bar");
+
+        let bar = env.var("BAR");
+        assert!(bar.is_ok());
+        assert_eq!(&bar.unwrap(), "bar");
     }
 
     #[test]
     fn it_gets_var_none() {
         let env = Env::new();
-        let value = env.var(OsStr::new("FOO"));
+        let value = env.var("FOO");
         assert!(value.is_err());
         assert_eq!(value, Err(VarError::NotPresent));
     }
@@ -107,17 +116,23 @@ mod tests {
     fn it_gets_var_os() {
         let mut internal_env = HashMap::new();
         internal_env.insert(OsString::from("FOO"), OsString::from("foo"));
-        let env = Env { env: internal_env };
+        let mut env = Env { env: internal_env };
 
-        let value = env.var_os(OsStr::new("FOO"));
-        assert!(value.is_some());
-        assert_eq!(value.unwrap(), OsString::from("foo"));
+        let foo = env.var_os("FOO");
+        assert!(foo.is_some());
+        assert_eq!(foo.unwrap(), OsString::from("foo"));
+
+        env.set_var("BAR", "bar");
+
+        let bar = env.var_os("BAR");
+        assert!(bar.is_some());
+        assert_eq!(bar.unwrap(), OsString::from("bar"));
     }
 
     #[test]
     fn it_gets_var_os_none() {
         let env = Env::new();
-        let value = env.var_os(OsStr::new("FOO"));
+        let value = env.var_os("FOO");
         assert!(value.is_none());
     }
 
@@ -129,17 +144,6 @@ mod tests {
         assert_eq!(env.env.get(OsStr::new("FOO")).unwrap(), "BAR");
 
         env.set_var("FOO", "foo");
-        assert_eq!(env.env.get(OsStr::new("FOO")).unwrap(), "foo");
-    }
-
-    #[test]
-    fn it_sets_var_os() {
-        let mut env = Env::new();
-        env.set_var_os(OsStr::new("FOO"), OsStr::new("BAR"));
-
-        assert_eq!(env.env.get(OsStr::new("FOO")).unwrap(), "BAR");
-
-        env.set_var_os(OsStr::new("FOO"), OsStr::new("foo"));
         assert_eq!(env.env.get(OsStr::new("FOO")).unwrap(), "foo");
     }
 
