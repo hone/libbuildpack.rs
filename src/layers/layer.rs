@@ -178,7 +178,7 @@ mod tests {
     use toml::value::Value;
 
     struct Setup {
-        tmp_dir: TempDir,
+        _tmp_dir: TempDir,
         pub root_path: PathBuf,
         pub name: String,
         pub layer: Layer,
@@ -192,7 +192,7 @@ mod tests {
 
         Setup {
             root_path: root_path,
-            tmp_dir: tmp_dir,
+            _tmp_dir: tmp_dir,
             name: name,
             layer: layer,
         }
@@ -280,8 +280,8 @@ foo = "bar"
     #[test]
     fn it_can_set_build_env_vars() {
         let mut setup = setup();
-        let mut layer = &mut setup.layer;
-        let mut build_env = &mut layer.envs.build;
+        let layer = &mut setup.layer;
+        let build_env = &mut layer.envs.build;
         let env_folder = setup.root_path.join(setup.name).join("env.build");
 
         build_env.append_path.set_var("FOO", "foo");
@@ -296,8 +296,8 @@ foo = "bar"
     #[test]
     fn it_can_set_launch_env_vars() {
         let mut setup = setup();
-        let mut layer = &mut setup.layer;
-        let mut launch_env = &mut layer.envs.launch;
+        let layer = &mut setup.layer;
+        let launch_env = &mut layer.envs.launch;
         let env_folder = setup.root_path.join(setup.name).join("env.launch");
 
         launch_env.append_path.set_var("FOO", "foo");
@@ -312,8 +312,8 @@ foo = "bar"
     #[test]
     fn it_can_set_shared_env_vars() {
         let mut setup = setup();
-        let mut layer = &mut setup.layer;
-        let mut shared_env = &mut layer.envs.shared;
+        let layer = &mut setup.layer;
+        let shared_env = &mut layer.envs.shared;
         let env_folder = setup.root_path.join(setup.name).join("env");
 
         shared_env.append_path.set_var("FOO", "foo");
@@ -409,14 +409,14 @@ foo = "bar"
     #[test]
     fn it_removes_metadata_that_does_not_exist() {
         let mut setup = setup();
-        let mut layer = &mut setup.layer;
+        let layer = &mut setup.layer;
 
         assert!(layer.remove_metadata().is_ok());
     }
 
     #[test]
     fn it_removes_metadata_that_does_exist() {
-        let mut setup = setup();
+        let setup = setup();
         let layer = &setup.layer;
         let metadata_path = setup.root_path.join(format!("{}.toml", &setup.name));
         let mut file = File::create(&metadata_path).unwrap();
