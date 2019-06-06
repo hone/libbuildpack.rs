@@ -90,7 +90,7 @@ impl Layer {
     }
 
     fn write_env(&self, folder: &str, env: &EnvSet) -> Result<(), std::io::Error> {
-        let folder_path = &self.root.join(folder);
+        let folder_path = &self.layer_path().join(folder);
         std::fs::create_dir_all(&folder_path)?;
 
         for (key, value) in env.append_path.vars() {
@@ -225,7 +225,7 @@ foo = "bar"
         let mut setup = setup();
         let mut layer = &mut setup.layer;
         let mut build_env = &mut layer.envs.build;
-        let env_folder = setup.root_path.join("env.build");
+        let env_folder = setup.root_path.join(setup.name).join("env.build");
 
         build_env.append_path.set_var("FOO", "foo");
         build_env.append.set_var("BAR", "bar");
@@ -241,7 +241,7 @@ foo = "bar"
         let mut setup = setup();
         let mut layer = &mut setup.layer;
         let mut launch_env = &mut layer.envs.launch;
-        let env_folder = setup.root_path.join("env.launch");
+        let env_folder = setup.root_path.join(setup.name).join("env.launch");
 
         launch_env.append_path.set_var("FOO", "foo");
         launch_env.append.set_var("BAR", "bar");
@@ -257,7 +257,7 @@ foo = "bar"
         let mut setup = setup();
         let mut layer = &mut setup.layer;
         let mut shared_env = &mut layer.envs.shared;
-        let env_folder = setup.root_path.join("env");
+        let env_folder = setup.root_path.join(setup.name).join("env");
 
         shared_env.append_path.set_var("FOO", "foo");
         shared_env.append.set_var("BAR", "bar");
