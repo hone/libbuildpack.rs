@@ -34,7 +34,7 @@ impl Layer {
         })
     }
 
-    fn config_path(&self) -> PathBuf {
+    pub fn config_path(&self) -> PathBuf {
         self.root.join(format!("{}.toml", &self.name))
     }
 
@@ -42,7 +42,7 @@ impl Layer {
         self.root.join(&self.name)
     }
 
-    fn profile_d_path(&self) -> PathBuf {
+    pub fn profile_d_path(&self) -> PathBuf {
         self.layer_path().join("profile.d")
     }
 
