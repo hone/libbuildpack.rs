@@ -32,6 +32,12 @@ impl EnvSet {
             append_path: Env::new(),
         }
     }
+
+    pub fn clear(&mut self) {
+        self.append.clear();
+        self.r#override.clear();
+        self.append_path.clear();
+    }
 }
 
 pub struct Env {
@@ -43,6 +49,10 @@ impl Env {
         Self {
             env: HashMap::new(),
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.env.clear()
     }
 
     pub fn vars(&self) -> impl Iterator<Item = (&str, &str)> {
@@ -169,5 +179,28 @@ mod tests {
             assert_eq!(key, String::from("FOO"));
             assert_eq!(value, String::from("foo"));
         }
+    }
+
+    #[test]
+    fn it_clears() {
+        let mut env = Env::new();
+        env.set_var("FOO", "foo");
+        env.clear();
+
+        assert_eq!(env.var("FOO"), Err(VarError::NotPresent));
+    }
+
+    #[test]
+    fn it_clears_env_set() {
+        let mut env_set = EnvSet::new();
+        env_set.append.set_var("FOO", "foo");
+        env_set.append_path.set_var("FOO", "foo");
+        env_set.r#override.set_var("FOO", "foo");
+
+        env_set.clear();
+
+        assert_eq!(env_set.append.var("FOO"), Err(VarError::NotPresent));
+        assert_eq!(env_set.append_path.var("FOO"), Err(VarError::NotPresent));
+        assert_eq!(env_set.r#override.var("FOO"), Err(VarError::NotPresent));
     }
 }

@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -84,13 +85,21 @@ impl Layer {
     }
 
     pub fn write_envs(&self) -> Result<(), std::io::Error> {
-        self.write_env(BUILD_ENV_FOLDER, &self.envs.build)
-            .and(self.write_env(SHARED_ENV_FOLDER, &self.envs.shared))
-            .and(self.write_env(LAUNCH_ENV_FOLDER, &self.envs.launch))
+        Self::write_env(&self.layer_path(), BUILD_ENV_FOLDER, &self.envs.build)
+            .and(Self::write_env(
+                &self.layer_path(),
+                SHARED_ENV_FOLDER,
+                &self.envs.shared,
+            ))
+            .and(Self::write_env(
+                &self.layer_path(),
+                LAUNCH_ENV_FOLDER,
+                &self.envs.launch,
+            ))
     }
 
-    fn write_env(&self, folder: &str, env: &EnvSet) -> Result<(), std::io::Error> {
-        let folder_path = &self.layer_path().join(folder);
+    fn write_env(layer_path: &PathBuf, folder: &str, env: &EnvSet) -> Result<(), std::io::Error> {
+        let folder_path = layer_path.join(folder);
         std::fs::create_dir_all(&folder_path)?;
 
         for (key, value) in env.append_path.vars() {
@@ -108,6 +117,54 @@ impl Layer {
             let filename = format!("{}.override", key);
             let mut file = File::create(&folder_path.join(filename))?;
             file.write_all(value.as_bytes())?;
+        }
+
+        Ok(())
+    }
+
+    pub fn read_envs(&mut self) -> Result<(), std::io::Error> {
+        Self::read_env(&self.layer_path(), BUILD_ENV_FOLDER, &mut self.envs.build)
+            .and(Self::read_env(
+                &self.layer_path(),
+                LAUNCH_ENV_FOLDER,
+                &mut self.envs.launch,
+            ))
+            .and(Self::read_env(
+                &self.layer_path(),
+                SHARED_ENV_FOLDER,
+                &mut self.envs.shared,
+            ))
+    }
+
+    fn read_env(layer: &PathBuf, folder: &str, env: &mut EnvSet) -> Result<(), std::io::Error> {
+        env.clear();
+
+        let folder_path = layer.join(folder);
+        if !folder_path.is_dir() {
+            return Ok(());
+        }
+
+        for entry in std::fs::read_dir(folder_path)? {
+            let entry = entry?;
+            let env_path = entry.path();
+            let mut file = File::open(entry.path())?;
+            let mut value = String::new();
+            file.read_to_string(&mut value)?;
+
+            let ext = env_path.extension().unwrap_or(OsStr::new(""));
+            let mut key_path = entry.path();
+            if ext == "append" || ext == "override" {
+                key_path.set_extension("");
+            }
+            let key = key_path.file_name().unwrap();
+
+            if ext == "append" {
+                env.append.set_var(key, value);
+            } else if ext == "override" {
+                env.r#override.set_var(key, value);
+            } else {
+                env.append_path.set_var(key, value);
+            }
         }
 
         Ok(())
@@ -266,6 +323,87 @@ foo = "bar"
         test_env_file(&env_folder.join("FOO"), "foo");
         test_env_file(&env_folder.join("BAR.append"), "bar");
         test_env_file(&env_folder.join("BAZ.override"), "baz");
+    }
+
+    #[test]
+    fn it_can_read_build_env_vars() {
+        let mut setup = setup();
+        let layer = &mut setup.layer;
+        let env_folder = setup.root_path.join(setup.name).join("env.build");
+
+        std::fs::create_dir_all(&env_folder).unwrap();
+        let mut foo = File::create(env_folder.join("FOO")).unwrap();
+        foo.write_all(b"foo").unwrap();
+        let mut bar = File::create(env_folder.join("BAR.append")).unwrap();
+        bar.write_all(b"bar").unwrap();
+        let mut baz = File::create(env_folder.join("BAZ.override")).unwrap();
+        baz.write_all(b"baz").unwrap();
+
+        assert!(layer.read_envs().is_ok());
+
+        assert_eq!(
+            layer.envs.build.append_path.var("FOO"),
+            Ok("foo".to_string())
+        );
+        assert_eq!(layer.envs.build.append.var("BAR"), Ok("bar".to_string()));
+        assert_eq!(
+            layer.envs.build.r#override.var("BAZ"),
+            Ok("baz".to_string())
+        );
+    }
+
+    #[test]
+    fn it_can_read_launch_env_vars() {
+        let mut setup = setup();
+        let layer = &mut setup.layer;
+        let env_folder = setup.root_path.join(setup.name).join("env.launch");
+
+        std::fs::create_dir_all(&env_folder).unwrap();
+        let mut foo = File::create(env_folder.join("FOO")).unwrap();
+        foo.write_all(b"foo").unwrap();
+        let mut bar = File::create(env_folder.join("BAR.append")).unwrap();
+        bar.write_all(b"bar").unwrap();
+        let mut baz = File::create(env_folder.join("BAZ.override")).unwrap();
+        baz.write_all(b"baz").unwrap();
+
+        assert!(layer.read_envs().is_ok());
+
+        assert_eq!(
+            layer.envs.launch.append_path.var("FOO"),
+            Ok("foo".to_string())
+        );
+        assert_eq!(layer.envs.launch.append.var("BAR"), Ok("bar".to_string()));
+        assert_eq!(
+            layer.envs.launch.r#override.var("BAZ"),
+            Ok("baz".to_string())
+        );
+    }
+
+    #[test]
+    fn it_can_read_shared_env_vars() {
+        let mut setup = setup();
+        let layer = &mut setup.layer;
+        let env_folder = setup.root_path.join(setup.name).join("env");
+
+        std::fs::create_dir_all(&env_folder).unwrap();
+        let mut foo = File::create(env_folder.join("FOO")).unwrap();
+        foo.write_all(b"foo").unwrap();
+        let mut bar = File::create(env_folder.join("BAR.append")).unwrap();
+        bar.write_all(b"bar").unwrap();
+        let mut baz = File::create(env_folder.join("BAZ.override")).unwrap();
+        baz.write_all(b"baz").unwrap();
+
+        assert!(layer.read_envs().is_ok());
+
+        assert_eq!(
+            layer.envs.shared.append_path.var("FOO"),
+            Ok("foo".to_string())
+        );
+        assert_eq!(layer.envs.shared.append.var("BAR"), Ok("bar".to_string()));
+        assert_eq!(
+            layer.envs.shared.r#override.var("BAZ"),
+            Ok("baz".to_string())
+        );
     }
 
     #[test]
