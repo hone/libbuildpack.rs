@@ -1,30 +1,46 @@
 mod config;
 mod env;
+mod launch;
 mod layer;
+use launch::Launch;
 pub use layer::Layer;
 
-use std::collections::HashMap;
+use std::fs::File;
+use std::io::Write;
 use std::path::PathBuf;
 
 const ROOT_LAYER_FOLDER: &str = "/layers";
+const LAUNCH_TOML_FILE: &str = "launch.toml";
 
 pub struct Layers {
     root: PathBuf,
-    layers: HashMap<String, Layer>,
+    pub launch: Launch,
 }
 
 impl Layers {
     pub fn new(layer_dir: &PathBuf) -> Self {
         Self {
             root: layer_dir.clone(),
-            layers: HashMap::new(),
+            launch: Launch::new(),
         }
     }
 
-    pub fn add(&mut self, name: &str) -> Result<&mut Layer, std::io::Error> {
+    pub fn launch_path(&self) -> PathBuf {
+        self.root.join(LAUNCH_TOML_FILE)
+    }
+
+    pub fn add(&mut self, name: &str) -> Result<Layer, std::io::Error> {
         let layer = Layer::new(self.root.to_str().unwrap(), name)?;
-        &self.layers.insert(name.to_string(), layer);
-        Ok(self.layers.get_mut(name).unwrap())
+
+        Ok(layer)
+    }
+
+    pub fn write_launch(&self) -> Result<(), std::io::Error> {
+        let string = toml::to_string(&self.launch).unwrap();
+        let mut file = File::create(&self.launch_path())?;
+        file.write_all(string.as_bytes())?;
+
+        Ok(())
     }
 }
 
@@ -36,10 +52,23 @@ pub fn new(name: &str) -> Result<Layer, std::io::Error> {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use tempdir::TempDir;
 
     #[test]
     fn it_adds_new_layer() {
         assert!(new("foo").is_ok());
         assert!(PathBuf::from("/layers/foo").is_dir());
+    }
+
+    #[test]
+    fn it_writes_launch_toml() {
+        let tmp_dir = TempDir::new("libbuildpack.rs").unwrap();
+        let root = tmp_dir.path().join("layers").join("buildpack");
+        std::fs::create_dir_all(&root).unwrap();
+        let mut layers = Layers::new(&root);
+        layers.launch.add_process("web", "bin/rails");
+
+        assert!(layers.write_launch().is_ok());
+        assert!(root.join("launch.toml").is_file());
     }
 }
