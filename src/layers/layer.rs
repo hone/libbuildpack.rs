@@ -35,6 +35,14 @@ impl Layer {
         })
     }
 
+    pub fn config<F>(&mut self, mut f: F) -> Result<(), std::io::Error>
+    where
+        F: FnMut(&mut Config),
+    {
+        f(&mut self.config);
+        self.write_metadata()
+    }
+
     pub fn config_path(&self) -> PathBuf {
         self.root.join(format!("{}.toml", &self.name))
     }
@@ -210,6 +218,23 @@ mod tests {
         let setup = setup();
 
         assert!(&setup.root_path.join(&setup.name).exists());
+    }
+
+    #[test]
+    fn it_can_set_config() {
+        let setup = setup();
+        let mut layer = setup.layer;
+        layer
+            .config(|c| {
+                c.launch = Some(true);
+                c.build = Some(true);
+                c.cache = Some(false);
+            })
+            .unwrap();
+
+        assert_eq!(Some(true), layer.config.launch);
+        assert_eq!(Some(true), layer.config.build);
+        assert_eq!(Some(false), layer.config.cache);
     }
 
     #[test]
