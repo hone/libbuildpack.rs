@@ -8,7 +8,7 @@ pub use layer::Layer;
 
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 const ROOT_LAYER_FOLDER: &str = "/layers";
 const LAUNCH_TOML_FILE: &str = "launch.toml";
@@ -19,9 +19,9 @@ pub struct Layers {
 }
 
 impl Layers {
-    pub fn new(layer_dir: &PathBuf) -> Self {
+    pub fn new<P: AsRef<Path>>(layer_dir: P) -> Self {
         Self {
-            root: layer_dir.clone(),
+            root: layer_dir.as_ref().to_path_buf(),
             launch: Launch::new(),
         }
     }
@@ -56,7 +56,6 @@ pub fn new(name: &str) -> Result<Layer> {
 mod tests {
     use super::*;
     use failure::Error;
-    use std::path::PathBuf;
     use std::result::Result;
     use tempdir::TempDir;
 
