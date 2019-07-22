@@ -5,6 +5,7 @@ authors = ["Terence Lee <hone02@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+failure = "0.1.5"
 toml = "0.5"
 serde = "1.0"
 serde_derive = "1.0"

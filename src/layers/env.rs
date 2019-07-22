@@ -105,13 +105,13 @@ mod tests {
 
         let value = env.var("FOO");
         assert!(value.is_ok());
-        assert_eq!(value.unwrap(), String::from("foo"));
+        assert_eq!(value, Ok(String::from("foo")));
 
         env.set_var("BAR", "bar");
 
         let bar = env.var("BAR");
         assert!(bar.is_ok());
-        assert_eq!(&bar.unwrap(), "bar");
+        assert_eq!(bar, Ok(String::from("bar")));
     }
 
     #[test]

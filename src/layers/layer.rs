@@ -2,6 +2,9 @@ use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
+
+use crate::error::Result;
+
 use toml;
 
 use super::{
@@ -22,7 +25,7 @@ pub struct Layer {
 }
 
 impl Layer {
-    pub fn new(root: &str, name: &str) -> Result<Self, std::io::Error> {
+    pub fn new(root: &str, name: &str) -> Result<Self> {
         let root_path = PathBuf::from(&root);
         let layer_path = root_path.join(&name);
         std::fs::create_dir_all(&layer_path)?;
@@ -35,7 +38,7 @@ impl Layer {
         })
     }
 
-    pub fn config<F>(&mut self, mut f: F) -> Result<(), std::io::Error>
+    pub fn config<F>(&mut self, mut f: F) -> Result<()>
     where
         F: FnMut(&mut Config),
     {
@@ -55,27 +58,27 @@ impl Layer {
         self.layer_path().join("profile.d")
     }
 
-    pub fn write_metadata(&self) -> Result<(), std::io::Error> {
-        let string = toml::to_string(&self.config).unwrap();
+    pub fn write_metadata(&self) -> Result<()> {
+        let string = toml::to_string(&self.config)?;
         let mut file = File::create(&self.config_path())?;
         file.write_all(string.as_bytes())?;
 
         Ok(())
     }
 
-    pub fn read_metadata(&mut self) -> Result<(), std::io::Error> {
+    pub fn read_metadata(&mut self) -> Result<()> {
         let mut file = match File::open(&self.config_path()) {
             Ok(file) => file,
             Err(_) => return Ok(()),
         };
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;
-        self.config = toml::from_str(&contents).unwrap();
+        self.config = toml::from_str(&contents)?;
 
         Ok(())
     }
 
-    pub fn remove_metadata(&self) -> Result<(), std::io::Error> {
+    pub fn remove_metadata(&self) -> Result<()> {
         if self.config_path().is_file() {
             std::fs::remove_file(&self.config_path())?;
         }
@@ -83,7 +86,7 @@ impl Layer {
         Ok(())
     }
 
-    pub fn write_profile_d(&self, name: &str, contents: &str) -> Result<(), std::io::Error> {
+    pub fn write_profile_d(&self, name: &str, contents: &str) -> Result<()> {
         std::fs::create_dir_all(&self.profile_d_path())?;
         let file_path = &self.profile_d_path().join(name);
         let mut file = File::create(&file_path)?;
@@ -92,7 +95,7 @@ impl Layer {
         Ok(())
     }
 
-    pub fn write_envs(&self) -> Result<(), std::io::Error> {
+    pub fn write_envs(&self) -> Result<()> {
         Self::write_env(&self.layer_path(), BUILD_ENV_FOLDER, &self.envs.build)
             .and(Self::write_env(
                 &self.layer_path(),
@@ -106,7 +109,7 @@ impl Layer {
             ))
     }
 
-    fn write_env(layer_path: &PathBuf, folder: &str, env: &EnvSet) -> Result<(), std::io::Error> {
+    fn write_env(layer_path: &PathBuf, folder: &str, env: &EnvSet) -> Result<()> {
         let folder_path = layer_path.join(folder);
         std::fs::create_dir_all(&folder_path)?;
 
@@ -130,7 +133,7 @@ impl Layer {
         Ok(())
     }
 
-    pub fn read_envs(&mut self) -> Result<(), std::io::Error> {
+    pub fn read_envs(&mut self) -> Result<()> {
         Self::read_env(&self.layer_path(), BUILD_ENV_FOLDER, &mut self.envs.build)
             .and(Self::read_env(
                 &self.layer_path(),
@@ -144,7 +147,7 @@ impl Layer {
             ))
     }
 
-    fn read_env(layer: &PathBuf, folder: &str, env: &mut EnvSet) -> Result<(), std::io::Error> {
+    fn read_env(layer: &PathBuf, folder: &str, env: &mut EnvSet) -> Result<()> {
         env.clear();
 
         let folder_path = layer.join(folder);
@@ -164,14 +167,16 @@ impl Layer {
             if ext == "append" || ext == "override" {
                 key_path.set_extension("");
             }
-            let key = key_path.file_name().unwrap();
 
-            if ext == "append" {
-                env.append.set_var(key, value);
-            } else if ext == "override" {
-                env.r#override.set_var(key, value);
-            } else {
-                env.append_path.set_var(key, value);
+            // returns `None` if path terminates in `..`
+            if let Some(key) = key_path.file_name() {
+                if ext == "append" {
+                    env.append.set_var(key, value);
+                } else if ext == "override" {
+                    env.r#override.set_var(key, value);
+                } else {
+                    env.append_path.set_var(key, value);
+                }
             }
         }
 
@@ -182,6 +187,8 @@ impl Layer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use failure::Error;
+    use std::result::Result;
     use tempdir::TempDir;
     use toml::value::Value;
 
@@ -192,70 +199,78 @@ mod tests {
         pub layer: Layer,
     }
 
-    fn setup() -> Setup {
-        let tmp_dir = TempDir::new("libbuildpack.rs").unwrap();
+    fn setup() -> Result<Setup, Error> {
+        let tmp_dir = TempDir::new("libbuildpack.rs")?;
         let root_path = tmp_dir.path().join("layers");
         let name = "foo".to_owned();
-        let layer = Layer::new(root_path.to_str().unwrap(), &name).unwrap();
+        let layer = Layer::new(root_path.to_str().unwrap(), &name)?;
 
-        Setup {
+        Ok(Setup {
             root_path: root_path,
             _tmp_dir: tmp_dir,
             name: name,
             layer: layer,
-        }
+        })
     }
 
-    fn test_env_file(env_file: &PathBuf, value: &str) {
+    fn test_env_file(env_file: &PathBuf, value: &str) -> Result<(), Error> {
         let mut contents = String::new();
-        let mut file = File::open(&env_file).unwrap();
-        file.read_to_string(&mut contents).unwrap();
+        let mut file = File::open(&env_file)?;
+        file.read_to_string(&mut contents)?;
+
         assert_eq!(contents, value);
+
+        Ok(())
     }
 
     #[test]
-    fn it_creates_a_new_layer() {
-        let setup = setup();
+    fn it_creates_a_new_layer() -> Result<(), Error> {
+        let setup = setup()?;
 
         assert!(&setup.root_path.join(&setup.name).exists());
+
+        Ok(())
     }
 
     #[test]
-    fn it_can_set_config() {
-        let setup = setup();
+    fn it_can_set_config() -> Result<(), Error> {
+        let setup = setup()?;
         let mut layer = setup.layer;
-        layer
+
+        assert!(layer
             .config(|c| {
                 c.launch = Some(true);
                 c.build = Some(true);
                 c.cache = Some(false);
             })
-            .unwrap();
+            .is_ok());
 
         assert_eq!(Some(true), layer.config.launch);
         assert_eq!(Some(true), layer.config.build);
         assert_eq!(Some(false), layer.config.cache);
+        assert!(&setup.root_path.join("foo.toml").exists());
+
+        Ok(())
     }
 
     #[test]
-    fn it_writes_metdata() {
-        let mut setup = setup();
+    fn it_writes_metdata() -> Result<(), Error> {
+        let mut setup = setup()?;
         let layer = &mut setup.layer;
         let toml_file = &setup.root_path.join("foo.toml");
 
         layer.config.launch = Some(true);
         layer.config.build = Some(false);
 
-        let config = &mut layer.config;
-        let metadata = config.metadata_as_mut();
+        let metadata = layer.config.metadata_as_mut();
         metadata.insert("foo".to_string(), Value::String("bar".to_string()));
         assert!(layer.write_metadata().is_ok());
         assert!(toml_file.exists());
 
-        let mut file = File::open(&toml_file).unwrap();
+        let mut file = File::open(&toml_file)?;
         let mut contents = String::new();
-        file.read_to_string(&mut contents).unwrap();
-        let mut config: Config = toml::from_str(&contents).unwrap();
+        file.read_to_string(&mut contents)?;
+        let mut config: Config = toml::from_str(&contents)?;
         assert_eq!(config.launch, Some(true));
         assert_eq!(config.build, Some(false));
         assert!(config.cache.is_none());
@@ -263,13 +278,15 @@ mod tests {
             config.metadata_as_mut().get("foo").unwrap().as_str(),
             Some("bar")
         );
+
+        Ok(())
     }
 
     #[test]
-    fn it_reads_metadata() {
-        let mut setup = setup();
+    fn it_reads_metadata() -> Result<(), Error> {
+        let mut setup = setup()?;
 
-        let mut file = File::create(&setup.root_path.join("foo.toml")).unwrap();
+        let mut file = File::create(&setup.root_path.join("foo.toml"))?;
         writeln!(
             file,
             r#"
@@ -279,8 +296,7 @@ build = false
 [metadata]
 foo = "bar"
 "#
-        )
-        .unwrap();
+        )?;
 
         let layer = &mut setup.layer;
         let read = layer.read_metadata();
@@ -292,19 +308,23 @@ foo = "bar"
             layer.config.metadata_as_mut().get("foo").unwrap().as_str(),
             Some("bar")
         );
+
+        Ok(())
     }
 
     #[test]
-    fn it_reads_metadata_when_no_file() {
-        let mut setup = setup();
+    fn it_reads_metadata_when_no_file() -> Result<(), Error> {
+        let mut setup = setup()?;
         let layer = &mut setup.layer;
         let read = layer.read_metadata();
         assert!(read.is_ok());
+
+        Ok(())
     }
 
     #[test]
-    fn it_can_set_build_env_vars() {
-        let mut setup = setup();
+    fn it_can_set_build_env_vars() -> Result<(), Error> {
+        let mut setup = setup()?;
         let layer = &mut setup.layer;
         let build_env = &mut layer.envs.build;
         let env_folder = setup.root_path.join(setup.name).join("env.build");
@@ -313,14 +333,16 @@ foo = "bar"
         build_env.append.set_var("BAR", "bar");
         build_env.r#override.set_var("BAZ", "baz");
         assert!(layer.write_envs().is_ok());
-        test_env_file(&env_folder.join("FOO"), "foo");
-        test_env_file(&env_folder.join("BAR.append"), "bar");
-        test_env_file(&env_folder.join("BAZ.override"), "baz");
+        test_env_file(&env_folder.join("FOO"), "foo")?;
+        test_env_file(&env_folder.join("BAR.append"), "bar")?;
+        test_env_file(&env_folder.join("BAZ.override"), "baz")?;
+
+        Ok(())
     }
 
     #[test]
-    fn it_can_set_launch_env_vars() {
-        let mut setup = setup();
+    fn it_can_set_launch_env_vars() -> Result<(), Error> {
+        let mut setup = setup()?;
         let layer = &mut setup.layer;
         let launch_env = &mut layer.envs.launch;
         let env_folder = setup.root_path.join(setup.name).join("env.launch");
@@ -329,14 +351,16 @@ foo = "bar"
         launch_env.append.set_var("BAR", "bar");
         launch_env.r#override.set_var("BAZ", "baz");
         assert!(layer.write_envs().is_ok());
-        test_env_file(&env_folder.join("FOO"), "foo");
-        test_env_file(&env_folder.join("BAR.append"), "bar");
-        test_env_file(&env_folder.join("BAZ.override"), "baz");
+        test_env_file(&env_folder.join("FOO"), "foo")?;
+        test_env_file(&env_folder.join("BAR.append"), "bar")?;
+        test_env_file(&env_folder.join("BAZ.override"), "baz")?;
+
+        Ok(())
     }
 
     #[test]
-    fn it_can_set_shared_env_vars() {
-        let mut setup = setup();
+    fn it_can_set_shared_env_vars() -> Result<(), Error> {
+        let mut setup = setup()?;
         let layer = &mut setup.layer;
         let shared_env = &mut layer.envs.shared;
         let env_folder = setup.root_path.join(setup.name).join("env");
@@ -345,24 +369,26 @@ foo = "bar"
         shared_env.append.set_var("BAR", "bar");
         shared_env.r#override.set_var("BAZ", "baz");
         assert!(layer.write_envs().is_ok());
-        test_env_file(&env_folder.join("FOO"), "foo");
-        test_env_file(&env_folder.join("BAR.append"), "bar");
-        test_env_file(&env_folder.join("BAZ.override"), "baz");
+        test_env_file(&env_folder.join("FOO"), "foo")?;
+        test_env_file(&env_folder.join("BAR.append"), "bar")?;
+        test_env_file(&env_folder.join("BAZ.override"), "baz")?;
+
+        Ok(())
     }
 
     #[test]
-    fn it_can_read_build_env_vars() {
-        let mut setup = setup();
+    fn it_can_read_build_env_vars() -> Result<(), Error> {
+        let mut setup = setup()?;
         let layer = &mut setup.layer;
         let env_folder = setup.root_path.join(setup.name).join("env.build");
 
-        std::fs::create_dir_all(&env_folder).unwrap();
-        let mut foo = File::create(env_folder.join("FOO")).unwrap();
-        foo.write_all(b"foo").unwrap();
-        let mut bar = File::create(env_folder.join("BAR.append")).unwrap();
-        bar.write_all(b"bar").unwrap();
-        let mut baz = File::create(env_folder.join("BAZ.override")).unwrap();
-        baz.write_all(b"baz").unwrap();
+        std::fs::create_dir_all(&env_folder)?;
+        let mut foo = File::create(env_folder.join("FOO"))?;
+        foo.write_all(b"foo")?;
+        let mut bar = File::create(env_folder.join("BAR.append"))?;
+        bar.write_all(b"bar")?;
+        let mut baz = File::create(env_folder.join("BAZ.override"))?;
+        baz.write_all(b"baz")?;
 
         assert!(layer.read_envs().is_ok());
 
@@ -375,21 +401,23 @@ foo = "bar"
             layer.envs.build.r#override.var("BAZ"),
             Ok("baz".to_string())
         );
+
+        Ok(())
     }
 
     #[test]
-    fn it_can_read_launch_env_vars() {
-        let mut setup = setup();
+    fn it_can_read_launch_env_vars() -> Result<(), Error> {
+        let mut setup = setup()?;
         let layer = &mut setup.layer;
         let env_folder = setup.root_path.join(setup.name).join("env.launch");
 
-        std::fs::create_dir_all(&env_folder).unwrap();
-        let mut foo = File::create(env_folder.join("FOO")).unwrap();
-        foo.write_all(b"foo").unwrap();
-        let mut bar = File::create(env_folder.join("BAR.append")).unwrap();
-        bar.write_all(b"bar").unwrap();
-        let mut baz = File::create(env_folder.join("BAZ.override")).unwrap();
-        baz.write_all(b"baz").unwrap();
+        std::fs::create_dir_all(&env_folder)?;
+        let mut foo = File::create(env_folder.join("FOO"))?;
+        foo.write_all(b"foo")?;
+        let mut bar = File::create(env_folder.join("BAR.append"))?;
+        bar.write_all(b"bar")?;
+        let mut baz = File::create(env_folder.join("BAZ.override"))?;
+        baz.write_all(b"baz")?;
 
         assert!(layer.read_envs().is_ok());
 
@@ -402,21 +430,23 @@ foo = "bar"
             layer.envs.launch.r#override.var("BAZ"),
             Ok("baz".to_string())
         );
+
+        Ok(())
     }
 
     #[test]
-    fn it_can_read_shared_env_vars() {
-        let mut setup = setup();
+    fn it_can_read_shared_env_vars() -> Result<(), Error> {
+        let mut setup = setup()?;
         let layer = &mut setup.layer;
         let env_folder = setup.root_path.join(setup.name).join("env");
 
-        std::fs::create_dir_all(&env_folder).unwrap();
-        let mut foo = File::create(env_folder.join("FOO")).unwrap();
-        foo.write_all(b"foo").unwrap();
-        let mut bar = File::create(env_folder.join("BAR.append")).unwrap();
-        bar.write_all(b"bar").unwrap();
-        let mut baz = File::create(env_folder.join("BAZ.override")).unwrap();
-        baz.write_all(b"baz").unwrap();
+        std::fs::create_dir_all(&env_folder)?;
+        let mut foo = File::create(env_folder.join("FOO"))?;
+        foo.write_all(b"foo")?;
+        let mut bar = File::create(env_folder.join("BAR.append"))?;
+        bar.write_all(b"bar")?;
+        let mut baz = File::create(env_folder.join("BAZ.override"))?;
+        baz.write_all(b"baz")?;
 
         assert!(layer.read_envs().is_ok());
 
@@ -429,22 +459,26 @@ foo = "bar"
             layer.envs.shared.r#override.var("BAZ"),
             Ok("baz".to_string())
         );
+
+        Ok(())
     }
 
     #[test]
-    fn it_removes_metadata_that_does_not_exist() {
-        let mut setup = setup();
+    fn it_removes_metadata_that_does_not_exist() -> Result<(), Error> {
+        let mut setup = setup()?;
         let layer = &mut setup.layer;
 
         assert!(layer.remove_metadata().is_ok());
+
+        Ok(())
     }
 
     #[test]
-    fn it_removes_metadata_that_does_exist() {
-        let setup = setup();
+    fn it_removes_metadata_that_does_exist() -> Result<(), Error> {
+        let setup = setup()?;
         let layer = &setup.layer;
         let metadata_path = setup.root_path.join(format!("{}.toml", &setup.name));
-        let mut file = File::create(&metadata_path).unwrap();
+        let mut file = File::create(&metadata_path)?;
         file.write_all(
             "
 build = false
@@ -455,20 +489,23 @@ launch = true
 version = 1
 "
             .as_bytes(),
-        )
-        .unwrap();
+        )?;
 
         assert!(layer.remove_metadata().is_ok());
         assert!(!metadata_path.is_file());
+
+        Ok(())
     }
 
     #[test]
-    fn it_writes_profile_d() {
-        let setup = setup();
+    fn it_writes_profile_d() -> Result<(), Error> {
+        let setup = setup()?;
         let layer = &setup.layer;
         let profile_d_path = setup.root_path.join("foo").join("profile.d").join("foo.sh");
 
         assert!(layer.write_profile_d("foo.sh", "exit 0").is_ok());
-        test_env_file(&profile_d_path, "exit 0");
+        test_env_file(&profile_d_path, "exit 0")?;
+
+        Ok(())
     }
 }

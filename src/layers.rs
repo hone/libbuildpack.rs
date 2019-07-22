@@ -2,6 +2,7 @@ mod config;
 mod env;
 mod launch;
 mod layer;
+use crate::error::{Error, ErrorKind, Result};
 use launch::Launch;
 pub use layer::Layer;
 
@@ -29,14 +30,17 @@ impl Layers {
         self.root.join(LAUNCH_TOML_FILE)
     }
 
-    pub fn add(&mut self, name: &str) -> Result<Layer, std::io::Error> {
-        let layer = Layer::new(self.root.to_str().unwrap(), name)?;
-
-        Ok(layer)
+    pub fn add(&mut self, name: &str) -> Result<Layer> {
+        if let Some(root) = self.root.to_str() {
+            let layer = Layer::new(root, name)?;
+            Ok(layer)
+        } else {
+            Err(Error::from(ErrorKind::new_path(&self.root)))
+        }
     }
 
-    pub fn write_launch(&self) -> Result<(), std::io::Error> {
-        let string = toml::to_string(&self.launch).unwrap();
+    pub fn write_launch(&self) -> Result<()> {
+        let string = toml::to_string(&self.launch)?;
         let mut file = File::create(&self.launch_path())?;
         file.write_all(string.as_bytes())?;
 
@@ -44,14 +48,16 @@ impl Layers {
     }
 }
 
-pub fn new(name: &str) -> Result<Layer, std::io::Error> {
+pub fn new(name: &str) -> Result<Layer> {
     Layer::new(ROOT_LAYER_FOLDER, name)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use failure::Error;
     use std::path::PathBuf;
+    use std::result::Result;
     use tempdir::TempDir;
 
     #[test]
@@ -61,14 +67,16 @@ mod tests {
     }
 
     #[test]
-    fn it_writes_launch_toml() {
-        let tmp_dir = TempDir::new("libbuildpack.rs").unwrap();
+    fn it_writes_launch_toml() -> Result<(), Error> {
+        let tmp_dir = TempDir::new("libbuildpack.rs")?;
         let root = tmp_dir.path().join("layers").join("buildpack");
-        std::fs::create_dir_all(&root).unwrap();
+        std::fs::create_dir_all(&root)?;
         let mut layers = Layers::new(&root);
         layers.launch.add_process("web", "bin/rails");
 
         assert!(layers.write_launch().is_ok());
         assert!(root.join("launch.toml").is_file());
+
+        Ok(())
     }
 }
