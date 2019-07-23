@@ -1,6 +1,7 @@
 use crate::env::Env;
 use crate::error::Result;
 
+use std::fs;
 use std::path::Path;
 
 const ENV_DIR: &str = "env";
@@ -19,7 +20,7 @@ impl Platform {
 
                 // file_stem() returns None if no file name
                 if let Some(key) = path.file_stem() {
-                    let value = std::fs::read_to_string(&path)?;
+                    let value = fs::read_to_string(&path)?;
                     env.set_var(key, value);
                 }
             }
@@ -33,7 +34,6 @@ impl Platform {
 mod tests {
     use super::*;
 
-    use std::fs;
     use std::result::Result;
 
     use failure::Error;
@@ -43,7 +43,7 @@ mod tests {
     fn it_reads_env() -> Result<(), Error> {
         let platform_dir = TempDir::new("platform")?;
         let env_dir = platform_dir.path().join("env");
-        std::fs::create_dir_all(&env_dir)?;
+        fs::create_dir_all(&env_dir)?;
 
         fs::write(env_dir.join("FOO"), "BAR")?;
         fs::write(env_dir.join("BAR"), "BAZ")?;

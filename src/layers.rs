@@ -6,8 +6,7 @@ use crate::error::{Error, ErrorKind, Result};
 use launch::Launch;
 pub use layer::Layer;
 
-use std::fs::File;
-use std::io::Write;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 const ROOT_LAYER_FOLDER: &str = "/layers";
@@ -41,8 +40,7 @@ impl Layers {
 
     pub fn write_launch(&self) -> Result<()> {
         let string = toml::to_string(&self.launch)?;
-        let mut file = File::create(&self.launch_path())?;
-        file.write_all(string.as_bytes())?;
+        fs::write(&self.launch_path(), string)?;
 
         Ok(())
     }
@@ -69,7 +67,7 @@ mod tests {
     fn it_writes_launch_toml() -> Result<(), Error> {
         let tmp_dir = TempDir::new("libbuildpack.rs")?;
         let root = tmp_dir.path().join("layers").join("buildpack");
-        std::fs::create_dir_all(&root)?;
+        fs::create_dir_all(&root)?;
         let mut layers = Layers::new(&root);
         layers.launch.add_process("web", "bin/rails");
 

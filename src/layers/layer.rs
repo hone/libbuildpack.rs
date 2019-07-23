@@ -1,6 +1,5 @@
 use std::ffi::OsStr;
-use std::fs::File;
-use std::io::{Read, Write};
+use std::fs;
 use std::path::PathBuf;
 
 use crate::error::Result;
@@ -28,7 +27,7 @@ impl Layer {
     pub fn new(root: &str, name: &str) -> Result<Self> {
         let root_path = PathBuf::from(&root);
         let layer_path = root_path.join(&name);
-        std::fs::create_dir_all(&layer_path)?;
+        fs::create_dir_all(&layer_path)?;
 
         Ok(Layer {
             root: root_path,
@@ -60,37 +59,34 @@ impl Layer {
 
     pub fn write_metadata(&self) -> Result<()> {
         let string = toml::to_string(&self.config)?;
-        let mut file = File::create(&self.config_path())?;
-        file.write_all(string.as_bytes())?;
+        fs::write(&self.config_path(), string)?;
 
         Ok(())
     }
 
     pub fn read_metadata(&mut self) -> Result<()> {
-        let mut file = match File::open(&self.config_path()) {
-            Ok(file) => file,
-            Err(_) => return Ok(()),
-        };
-        let mut contents = String::new();
-        file.read_to_string(&mut contents)?;
-        self.config = toml::from_str(&contents)?;
+        let path = self.config_path();
+
+        if path.exists() {
+            let contents = fs::read_to_string(path)?;
+            self.config = toml::from_str(&contents)?;
+        }
 
         Ok(())
     }
 
     pub fn remove_metadata(&self) -> Result<()> {
         if self.config_path().is_file() {
-            std::fs::remove_file(&self.config_path())?;
+            fs::remove_file(&self.config_path())?;
         }
 
         Ok(())
     }
 
     pub fn write_profile_d(&self, name: &str, contents: &str) -> Result<()> {
-        std::fs::create_dir_all(&self.profile_d_path())?;
+        fs::create_dir_all(&self.profile_d_path())?;
         let file_path = &self.profile_d_path().join(name);
-        let mut file = File::create(&file_path)?;
-        file.write_all(contents.as_bytes())?;
+        fs::write(&file_path, contents)?;
 
         Ok(())
     }
@@ -111,23 +107,20 @@ impl Layer {
 
     fn write_env(layer_path: &PathBuf, folder: &str, env: &EnvSet) -> Result<()> {
         let folder_path = layer_path.join(folder);
-        std::fs::create_dir_all(&folder_path)?;
+        fs::create_dir_all(&folder_path)?;
 
         for (key, value) in env.append_path.vars() {
-            let mut file = File::create(&folder_path.join(key))?;
-            file.write_all(value.as_bytes())?;
+            fs::write(&folder_path.join(key), value)?;
         }
 
         for (key, value) in env.append.vars() {
             let filename = format!("{}.append", key);
-            let mut file = File::create(&folder_path.join(filename))?;
-            file.write_all(value.as_bytes())?;
+            fs::write(&folder_path.join(filename), value)?;
         }
 
         for (key, value) in env.r#override.vars() {
             let filename = format!("{}.override", key);
-            let mut file = File::create(&folder_path.join(filename))?;
-            file.write_all(value.as_bytes())?;
+            fs::write(&folder_path.join(filename), value)?;
         }
 
         Ok(())
@@ -155,12 +148,10 @@ impl Layer {
             return Ok(());
         }
 
-        for entry in std::fs::read_dir(folder_path)? {
+        for entry in fs::read_dir(folder_path)? {
             let entry = entry?;
             let env_path = entry.path();
-            let mut file = File::open(entry.path())?;
-            let mut value = String::new();
-            file.read_to_string(&mut value)?;
+            let value = fs::read_to_string(entry.path())?;
 
             let ext = env_path.extension().unwrap_or(OsStr::new(""));
             let mut key_path = entry.path();
@@ -214,9 +205,7 @@ mod tests {
     }
 
     fn test_env_file(env_file: &PathBuf, value: &str) -> Result<(), Error> {
-        let mut contents = String::new();
-        let mut file = File::open(&env_file)?;
-        file.read_to_string(&mut contents)?;
+        let contents = fs::read_to_string(&env_file)?;
 
         assert_eq!(contents, value);
 
@@ -267,9 +256,7 @@ mod tests {
         assert!(layer.write_metadata().is_ok());
         assert!(toml_file.exists());
 
-        let mut file = File::open(&toml_file)?;
-        let mut contents = String::new();
-        file.read_to_string(&mut contents)?;
+        let contents = fs::read_to_string(&toml_file)?;
         let mut config: Config = toml::from_str(&contents)?;
         assert_eq!(config.launch, Some(true));
         assert_eq!(config.build, Some(false));
@@ -286,16 +273,15 @@ mod tests {
     fn it_reads_metadata() -> Result<(), Error> {
         let mut setup = setup()?;
 
-        let mut file = File::create(&setup.root_path.join("foo.toml"))?;
-        writeln!(
-            file,
+        fs::write(
+            &setup.root_path.join("foo.toml"),
             r#"
 launch = true
 build = false
 
 [metadata]
 foo = "bar"
-"#
+"#,
         )?;
 
         let layer = &mut setup.layer;
@@ -382,13 +368,10 @@ foo = "bar"
         let layer = &mut setup.layer;
         let env_folder = setup.root_path.join(setup.name).join("env.build");
 
-        std::fs::create_dir_all(&env_folder)?;
-        let mut foo = File::create(env_folder.join("FOO"))?;
-        foo.write_all(b"foo")?;
-        let mut bar = File::create(env_folder.join("BAR.append"))?;
-        bar.write_all(b"bar")?;
-        let mut baz = File::create(env_folder.join("BAZ.override"))?;
-        baz.write_all(b"baz")?;
+        fs::create_dir_all(&env_folder)?;
+        fs::write(env_folder.join("FOO"), "foo")?;
+        fs::write(env_folder.join("BAR.append"), "bar")?;
+        fs::write(env_folder.join("BAZ.override"), "baz")?;
 
         assert!(layer.read_envs().is_ok());
 
@@ -411,13 +394,10 @@ foo = "bar"
         let layer = &mut setup.layer;
         let env_folder = setup.root_path.join(setup.name).join("env.launch");
 
-        std::fs::create_dir_all(&env_folder)?;
-        let mut foo = File::create(env_folder.join("FOO"))?;
-        foo.write_all(b"foo")?;
-        let mut bar = File::create(env_folder.join("BAR.append"))?;
-        bar.write_all(b"bar")?;
-        let mut baz = File::create(env_folder.join("BAZ.override"))?;
-        baz.write_all(b"baz")?;
+        fs::create_dir_all(&env_folder)?;
+        fs::write(env_folder.join("FOO"), "foo")?;
+        fs::write(env_folder.join("BAR.append"), "bar")?;
+        fs::write(env_folder.join("BAZ.override"), "baz")?;
 
         assert!(layer.read_envs().is_ok());
 
@@ -440,13 +420,10 @@ foo = "bar"
         let layer = &mut setup.layer;
         let env_folder = setup.root_path.join(setup.name).join("env");
 
-        std::fs::create_dir_all(&env_folder)?;
-        let mut foo = File::create(env_folder.join("FOO"))?;
-        foo.write_all(b"foo")?;
-        let mut bar = File::create(env_folder.join("BAR.append"))?;
-        bar.write_all(b"bar")?;
-        let mut baz = File::create(env_folder.join("BAZ.override"))?;
-        baz.write_all(b"baz")?;
+        fs::create_dir_all(&env_folder)?;
+        fs::write(env_folder.join("FOO"), "foo")?;
+        fs::write(env_folder.join("BAR.append"), "bar")?;
+        fs::write(env_folder.join("BAZ.override"), "baz")?;
 
         assert!(layer.read_envs().is_ok());
 
@@ -478,8 +455,8 @@ foo = "bar"
         let setup = setup()?;
         let layer = &setup.layer;
         let metadata_path = setup.root_path.join(format!("{}.toml", &setup.name));
-        let mut file = File::create(&metadata_path)?;
-        file.write_all(
+        fs::write(
+            &metadata_path,
             "
 build = false
 cache = false
@@ -487,8 +464,7 @@ launch = true
 
 [metadata]
 version = 1
-"
-            .as_bytes(),
+",
         )?;
 
         assert!(layer.remove_metadata().is_ok());
