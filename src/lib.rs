@@ -1,3 +1,4 @@
+pub mod build_plan;
 pub(crate) mod env;
 pub mod error;
 pub mod layers;
