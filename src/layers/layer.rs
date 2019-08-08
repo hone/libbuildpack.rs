@@ -228,15 +228,15 @@ mod tests {
 
         assert!(layer
             .config(|c| {
-                c.launch = Some(true);
-                c.build = Some(true);
-                c.cache = Some(false);
+                c.launch = true;
+                c.build = true;
+                c.cache = false;
             })
             .is_ok());
 
-        assert_eq!(Some(true), layer.config.launch);
-        assert_eq!(Some(true), layer.config.build);
-        assert_eq!(Some(false), layer.config.cache);
+        assert_eq!(true, layer.config.launch);
+        assert_eq!(true, layer.config.build);
+        assert_eq!(false, layer.config.cache);
         assert!(&setup.root_path.join("foo.toml").exists());
 
         Ok(())
@@ -248,23 +248,20 @@ mod tests {
         let layer = &mut setup.layer;
         let toml_file = &setup.root_path.join("foo.toml");
 
-        layer.config.launch = Some(true);
-        layer.config.build = Some(false);
+        layer.config.launch = true;
+        layer.config.build = false;
 
-        let metadata = layer.config.metadata_as_mut();
+        let metadata = &mut layer.config.metadata;
         metadata.insert("foo".to_string(), Value::String("bar".to_string()));
         assert!(layer.write_metadata().is_ok());
         assert!(toml_file.exists());
 
         let contents = fs::read_to_string(&toml_file)?;
-        let mut config: Config = toml::from_str(&contents)?;
-        assert_eq!(config.launch, Some(true));
-        assert_eq!(config.build, Some(false));
-        assert!(config.cache.is_none());
-        assert_eq!(
-            config.metadata_as_mut().get("foo").unwrap().as_str(),
-            Some("bar")
-        );
+        let config: Config = toml::from_str(&contents)?;
+        assert_eq!(config.launch, true);
+        assert_eq!(config.build, false);
+        assert_eq!(config.cache, false);
+        assert_eq!(config.metadata.get("foo").unwrap().as_str(), Some("bar"));
 
         Ok(())
     }
@@ -287,11 +284,11 @@ foo = "bar"
         let layer = &mut setup.layer;
         let read = layer.read_metadata();
         assert!(read.is_ok());
-        assert_eq!(layer.config.launch.unwrap(), true);
-        assert_eq!(layer.config.build.unwrap(), false);
-        assert!(layer.config.cache.is_none());
+        assert_eq!(layer.config.launch, true);
+        assert_eq!(layer.config.build, false);
+        assert_eq!(layer.config.cache, false);
         assert_eq!(
-            layer.config.metadata_as_mut().get("foo").unwrap().as_str(),
+            layer.config.metadata.get("foo").unwrap().as_str(),
             Some("bar")
         );
 

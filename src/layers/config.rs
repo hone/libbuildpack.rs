@@ -4,28 +4,25 @@ use serde_derive::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
-    pub build: Option<bool>,
-    pub cache: Option<bool>,
-    pub launch: Option<bool>,
-    metadata: Option<Metadata>,
+    #[serde(default)]
+    pub build: bool,
+    #[serde(default)]
+    pub cache: bool,
+    #[serde(default)]
+    pub launch: bool,
+    #[serde(skip_serializing_if = "Metadata::is_empty")]
+    #[serde(default)]
+    pub metadata: Metadata,
 }
 
 impl Config {
     pub fn new() -> Self {
         Self {
-            launch: None,
-            build: None,
-            cache: None,
-            metadata: None,
+            launch: false,
+            build: false,
+            cache: false,
+            metadata: Metadata::new(),
         }
-    }
-
-    pub fn metadata_as_mut(&mut self) -> &mut Metadata {
-        if self.metadata.is_none() {
-            self.metadata = Some(Metadata::new());
-        }
-
-        self.metadata.as_mut().unwrap()
     }
 }
 
@@ -34,16 +31,41 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_inserts_and_fetches_toml_value() {
-        let mut metadata = Metadata::new();
-        metadata.insert("foo", "bar");
-
+    fn it_serializes_metadata_to_toml() {
         let mut config = Config::new();
-        config.metadata_as_mut().insert("foo", "bar");
+        config.metadata.insert("foo", "bar");
 
-        assert_eq!(
-            Some(&toml::Value::String("bar".to_string())),
-            metadata.get("foo")
-        );
+        let toml_string = toml::to_string(&config);
+        assert!(toml_string.is_ok());
+        if let Ok(string) = toml_string {
+            assert_eq!(
+                r#"build = false
+cache = false
+launch = false
+
+[metadata]
+foo = "bar"
+"#,
+                string
+            );
+        }
+    }
+
+    #[test]
+    fn it_doesnt_serialize_metadata_to_toml() {
+        let mut config = Config::new();
+        config.launch = true;
+
+        let toml_string = toml::to_string(&config);
+        assert!(toml_string.is_ok());
+        if let Ok(string) = toml_string {
+            assert_eq!(
+                r#"build = false
+cache = false
+launch = true
+"#,
+                string
+            );
+        }
     }
 }

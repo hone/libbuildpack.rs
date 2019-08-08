@@ -4,7 +4,7 @@ use serde_derive::{Deserialize, Serialize};
 use toml::map::Map;
 use toml::value::Value;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct Metadata(Map<String, Value>);
 
 impl Deref for Metadata {
@@ -35,5 +35,25 @@ impl Metadata {
     pub fn get<K: Into<String>>(&self, key: K) -> Option<&Value> {
         let key_string = key.into();
         self.0.get(&key_string)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_inserts_and_fetches_toml_value() {
+        let mut metadata = Metadata::new();
+        metadata.insert("foo", "bar");
+
+        assert_eq!(
+            Some(&toml::Value::String("bar".to_string())),
+            metadata.get("foo")
+        );
     }
 }

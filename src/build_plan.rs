@@ -97,7 +97,7 @@ impl<'de> Deserialize<'de> for BuildPlan {
                         })?;
 
                         for (key, value) in metadata_table {
-                            dependency.metadata_as_mut().insert(key, value.clone());
+                            dependency.metadata.insert(key, value.clone());
                         }
                     }
                     build_plan.insert(key, dependency);
@@ -114,27 +114,17 @@ impl<'de> Deserialize<'de> for BuildPlan {
 #[derive(DeriveSerialize, DeriveDeserialize)]
 pub struct Dependency {
     pub version: String,
-    metadata: Option<Metadata>,
+    #[serde(skip_serializing_if = "Metadata::is_empty")]
+    #[serde(default)]
+    pub metadata: Metadata,
 }
 
 impl Dependency {
     pub fn new<S: Into<String>>(version: S) -> Self {
         Self {
             version: version.into(),
-            metadata: None,
+            metadata: Metadata::new(),
         }
-    }
-
-    pub fn metadata_as_mut(&mut self) -> &mut Metadata {
-        if self.metadata.is_none() {
-            self.metadata = Some(Metadata::new());
-        }
-
-        self.metadata.as_mut().unwrap()
-    }
-
-    pub fn metadata(&self) -> Option<&Metadata> {
-        self.metadata.as_ref()
     }
 }
 
@@ -214,13 +204,7 @@ foo = "bar"
             let dependency = build_plan.get("alpha").unwrap();
             assert_eq!(dependency.version, "alpha");
             assert_eq!(
-                dependency
-                    .metadata()
-                    .unwrap()
-                    .get("foo")
-                    .unwrap()
-                    .as_str()
-                    .unwrap(),
+                dependency.metadata.get("foo").unwrap().as_str().unwrap(),
                 "bar"
             );
         }
