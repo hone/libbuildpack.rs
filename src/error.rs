@@ -64,6 +64,12 @@ impl From<toml::de::Error> for Error {
     }
 }
 
+impl From<std::env::VarError> for Error {
+    fn from(err: std::env::VarError) -> Error {
+        Error::from(ErrorKind::Env(err))
+    }
+}
+
 /// The specific kind of error that can occur.
 #[derive(Debug)]
 pub enum ErrorKind {
@@ -75,6 +81,8 @@ pub enum ErrorKind {
     TomlSer(toml::ser::Error),
     /// Toml Deserialization error.
     TomlDe(toml::de::Error),
+    /// Env Var fetching error.
+    Env(std::env::VarError),
     /// Hints that destructuring should not be exhaustive.
     #[doc(hidden)]
     __Nonexhaustive,
@@ -93,6 +101,7 @@ impl fmt::Display for ErrorKind {
             ErrorKind::Io(ref err) => err.fmt(f),
             ErrorKind::TomlSer(ref err) => err.fmt(f),
             ErrorKind::TomlDe(ref err) => err.fmt(f),
+            ErrorKind::Env(ref err) => err.fmt(f),
             ErrorKind::__Nonexhaustive => panic!("invalid error"),
         }
     }
