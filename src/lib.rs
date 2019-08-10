@@ -1,4 +1,6 @@
 pub mod build_plan;
+mod detect;
+pub use detect::Detect;
 pub(crate) mod env;
 pub mod error;
 pub mod layers;

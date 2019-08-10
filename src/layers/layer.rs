@@ -42,7 +42,9 @@ impl Layer {
         F: FnMut(&mut Config),
     {
         f(&mut self.config);
-        self.write_metadata()
+        self.write_metadata()?;
+
+        Ok(())
     }
 
     pub fn config_path(&self) -> PathBuf {

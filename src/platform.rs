@@ -13,15 +13,18 @@ pub struct Platform {
 impl Platform {
     pub fn new<P: AsRef<Path>>(dir: P) -> Result<Self> {
         let mut env = Env::new();
+        let env_dir = dir.as_ref().join(ENV_DIR);
 
-        for entry in dir.as_ref().join(ENV_DIR).read_dir()? {
-            if let Ok(entry) = entry {
-                let path = entry.path();
+        if env_dir.exists() {
+            for entry in env_dir.read_dir()? {
+                if let Ok(entry) = entry {
+                    let path = entry.path();
 
-                // file_stem() returns None if no file name
-                if let Some(key) = path.file_stem() {
-                    let value = fs::read_to_string(&path)?;
-                    env.set_var(key, value);
+                    // file_stem() returns None if no file name
+                    if let Some(key) = path.file_stem() {
+                        let value = fs::read_to_string(&path)?;
+                        env.set_var(key, value);
+                    }
                 }
             }
         }
@@ -79,6 +82,17 @@ mod tests {
             assert_eq!(platform.env.var("FOO").unwrap(), "BAR");
             assert_eq!(platform.env.var("BAR").unwrap(), "BAZ");
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_doesnt_blow_up_on_no_env_dir() -> Result<(), Error> {
+        let tmpdir = TempDir::new("platform")?;
+        let platform_dir = tmpdir.path().join("");
+        let platform = Platform::new(platform_dir);
+
+        assert!(platform.is_ok());
 
         Ok(())
     }
