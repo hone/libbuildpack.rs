@@ -57,6 +57,7 @@ impl Build {
         if let Some(bin_path) = std::env::args_os().nth(0) {
             let mut buildpack_dir = PathBuf::from(bin_path.into_string()?);
             buildpack_dir.pop();
+            buildpack_dir.pop();
             Ok(buildpack_dir)
         } else {
             Err(Error::from(ErrorKind::NoArgs))

@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use crate::error::Error;
+use crate::error::Result;
 
 const ENV_VAR: &str = "CNB_STACK_ID";
 
@@ -15,7 +15,7 @@ impl Deref for Stack {
 }
 
 impl Stack {
-    pub fn new() -> Result<Self, Error> {
+    pub fn new() -> Result<Self> {
         let stack = std::env::var(ENV_VAR)?;
 
         Ok(Stack { 0: stack })
