@@ -29,7 +29,7 @@ impl Layers {
         self.root.join(LAUNCH_TOML_FILE)
     }
 
-    pub fn add(&mut self, name: &str) -> Result<Layer> {
+    pub fn add(&self, name: &str) -> Result<Layer> {
         if let Some(root) = self.root.to_str() {
             let layer = Layer::new(root, name)?;
             Ok(layer)
