@@ -70,6 +70,12 @@ impl From<std::env::VarError> for Error {
     }
 }
 
+impl From<std::ffi::OsString> for Error {
+    fn from(os_string: std::ffi::OsString) -> Error {
+        Error::from(ErrorKind::OsString(os_string))
+    }
+}
+
 /// The specific kind of error that can occur.
 #[derive(Debug)]
 pub enum ErrorKind {
@@ -83,6 +89,10 @@ pub enum ErrorKind {
     TomlDe(toml::de::Error),
     /// Env Var fetching error.
     Env(std::env::VarError),
+    /// OsString contains invalid Unicode data
+    OsString(std::ffi::OsString),
+    /// No
+    NoArgs,
     /// Hints that destructuring should not be exhaustive.
     #[doc(hidden)]
     __Nonexhaustive,
@@ -102,6 +112,8 @@ impl fmt::Display for ErrorKind {
             ErrorKind::TomlSer(ref err) => err.fmt(f),
             ErrorKind::TomlDe(ref err) => err.fmt(f),
             ErrorKind::Env(ref err) => err.fmt(f),
+            ErrorKind::OsString(ref _os_string) => write!(f, "invalid unicode characters provided"),
+            ErrorKind::NoArgs => write!(f, "Not enough args passed"),
             ErrorKind::__Nonexhaustive => panic!("invalid error"),
         }
     }
