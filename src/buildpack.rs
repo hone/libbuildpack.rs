@@ -1,4 +1,4 @@
-use crate::error::Result;
+use crate::error::{ErrorKind, Result};
 use crate::metadata::Metadata;
 
 use std::fs;
@@ -32,7 +32,9 @@ impl Buildpack {
     }
 
     pub fn from_file<P: AsRef<Path>>(file: P) -> Result<Self> {
-        let toml_string = fs::read_to_string(file.as_ref())?;
+        let file_path = file.as_ref();
+        let toml_string = fs::read_to_string(file_path)
+            .map_err(|_| ErrorKind::FileNotFound(file_path.to_path_buf()))?;
         let buildpack: Buildpack = toml::from_str(&toml_string)?;
 
         Ok(buildpack)
@@ -90,6 +92,7 @@ impl Stack {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempdir::TempDir;
 
     use failure::Error;
     use std::result::Result;
@@ -187,6 +190,16 @@ version = '1.0.0'
         let buildpack: Buildpack = toml::from_str(&toml_string)?;
 
         assert_eq!("heroku/ruby", buildpack.info.id);
+
+        Ok(())
+    }
+
+    #[test]
+    fn buildpack_from_file_returns_not_found_error() -> Result<(), Error> {
+        let temp_dir = TempDir::new("buildpack")?;
+
+        let result = Buildpack::from_file(temp_dir.path());
+        assert!(result.is_err());
 
         Ok(())
     }

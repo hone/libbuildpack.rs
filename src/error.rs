@@ -1,6 +1,5 @@
 use std::fmt;
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use failure::{Backtrace, Context, Fail};
 
@@ -79,10 +78,12 @@ impl From<std::ffi::OsString> for Error {
 /// The specific kind of error that can occur.
 #[derive(Debug)]
 pub enum ErrorKind {
-    /// An error that occurred while working with a file path.
-    Path(PathBuf),
+    /// A path contains invalid unicode.
+    PathUnicode(PathBuf),
     /// An unexpected I/O error.
     Io(std::io::Error),
+    /// File Not Found I/o error.
+    FileNotFound(PathBuf),
     /// Toml Serialization error.
     TomlSer(toml::ser::Error),
     /// Toml Deserialization error.
@@ -100,15 +101,20 @@ pub enum ErrorKind {
 
 impl ErrorKind {
     pub(crate) fn new_path<P: AsRef<Path>>(path: P) -> ErrorKind {
-        ErrorKind::Path(path.as_ref().to_path_buf())
+        ErrorKind::PathUnicode(path.as_ref().to_path_buf())
     }
 }
 
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ErrorKind::Path(ref path) => write!(f, "{}", path.display()),
+            ErrorKind::PathUnicode(ref path) => {
+                write!(f, "Path contains invalid unicode: {}", path.display())
+            }
             ErrorKind::Io(ref err) => err.fmt(f),
+            ErrorKind::FileNotFound(ref expected_file) => {
+                write!(f, "File Not Found: {}", expected_file.display())
+            }
             ErrorKind::TomlSer(ref err) => err.fmt(f),
             ErrorKind::TomlDe(ref err) => err.fmt(f),
             ErrorKind::Env(ref err) => err.fmt(f),
