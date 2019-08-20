@@ -49,6 +49,10 @@ impl Build {
         Ok(SUCCESS_STATUS_CODE)
     }
 
+    pub fn fail(&self, code: i32) -> i32 {
+        code
+    }
+
     fn find_toml() -> Result<PathBuf> {
         Ok(Self::buildpack_dir()?.join(BUILDPACK_FILE))
     }
