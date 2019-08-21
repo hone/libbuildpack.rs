@@ -1,16 +1,11 @@
-use std::ffi::OsStr;
-use std::fs;
-use std::path::PathBuf;
-
-use crate::error::Result;
-
-use log::debug;
-use toml;
-
 use super::{
     config::Config,
     env::{EnvSet, Envs},
 };
+use crate::error::Result;
+use log::debug;
+use std::{ffi::OsStr, fs, path::PathBuf};
+use toml;
 
 const BUILD_ENV_FOLDER: &str = "env.build";
 const LAUNCH_ENV_FOLDER: &str = "env.launch";

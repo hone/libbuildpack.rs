@@ -1,6 +1,8 @@
-use std::collections::HashMap;
-use std::env::VarError;
-use std::ffi::{OsStr, OsString};
+use std::{
+    collections::HashMap,
+    env::VarError,
+    ffi::{OsStr, OsString},
+};
 
 #[derive(Debug)]
 pub struct Env {

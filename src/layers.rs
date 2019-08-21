@@ -5,9 +5,10 @@ mod layer;
 use crate::error::{Error, ErrorKind, Result};
 use launch::Launch;
 pub use layer::Layer;
-
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 const ROOT_LAYER_FOLDER: &str = "/layers";
 const LAUNCH_TOML_FILE: &str = "launch.toml";

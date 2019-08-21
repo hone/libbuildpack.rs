@@ -1,7 +1,8 @@
-use std::fmt;
-use std::path::{Path, PathBuf};
-
 use failure::{Backtrace, Context, Fail};
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 

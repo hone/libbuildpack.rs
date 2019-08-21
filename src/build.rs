@@ -1,14 +1,16 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-
-use crate::build_plan::BuildPlan;
-use crate::buildpack::Buildpack;
-use crate::error::{Error, ErrorKind, Result};
-use crate::layers::Layers;
-use crate::platform::Platform;
-use crate::stack::Stack;
-
+use crate::{
+    build_plan::BuildPlan,
+    buildpack::Buildpack,
+    error::{Error, ErrorKind, Result},
+    layers::Layers,
+    platform::Platform,
+    stack::Stack,
+};
 use log::debug;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 const SUCCESS_STATUS_CODE: i32 = 0;
 
@@ -79,12 +81,10 @@ impl Build {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use failure::Error;
-    use tempdir::TempDir;
-
     use crate::build_plan::Dependency;
-
+    use failure::Error;
     use std::result::Result;
+    use tempdir::TempDir;
 
     #[test]
     fn build_succeeds_writes_a_build_plan() -> Result<(), Error> {

@@ -1,12 +1,14 @@
 use crate::metadata::Metadata;
-
-use std::collections::HashMap;
-use std::fmt;
-use std::ops::{Deref, DerefMut};
-
-use serde::de::{Deserialize, Deserializer, MapAccess, Visitor};
-use serde::ser::{Serialize, SerializeMap, Serializer};
+use serde::{
+    de::{Deserialize, Deserializer, MapAccess, Visitor},
+    ser::{Serialize, SerializeMap, Serializer},
+};
 use serde_derive::{Deserialize as DeriveDeserialize, Serialize as DeriveSerialize};
+use std::{
+    collections::HashMap,
+    fmt,
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Debug)]
 pub struct BuildPlan(HashMap<String, Dependency>);
@@ -132,7 +134,6 @@ impl Dependency {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     use failure::Error;
 
     #[test]

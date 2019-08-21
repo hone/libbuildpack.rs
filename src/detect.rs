@@ -1,12 +1,6 @@
-use crate::build_plan::BuildPlan;
-use crate::error::Result;
-use crate::platform::Platform;
-use crate::stack::Stack;
-
-use std::fs;
-use std::path::PathBuf;
-
+use crate::{build_plan::BuildPlan, error::Result, platform::Platform, stack::Stack};
 use log::debug;
+use std::{fs, path::PathBuf};
 
 const FAIL_STATUS_CODE: i32 = 100;
 const PASS_STATUS_CODE: i32 = 0;
@@ -57,11 +51,9 @@ impl Detect {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::result::Result;
-
     use crate::build_plan::Dependency;
-
     use failure::Error;
+    use std::result::Result;
     use tempdir::TempDir;
 
     struct Setup {

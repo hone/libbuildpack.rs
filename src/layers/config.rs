@@ -1,5 +1,4 @@
 use crate::metadata::Metadata;
-
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]

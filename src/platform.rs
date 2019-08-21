@@ -1,10 +1,6 @@
-use crate::env::Env;
-use crate::error::Result;
-
-use std::fs;
-use std::path::Path;
-
+use crate::{env::Env, error::Result};
 use log::debug;
+use std::{fs, path::Path};
 
 const ENV_DIR: &str = "env";
 
@@ -47,11 +43,8 @@ impl Platform {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use std::path::PathBuf;
-    use std::result::Result;
-
     use failure::Error;
+    use std::{path::PathBuf, result::Result};
     use tempdir::TempDir;
 
     struct Setup {

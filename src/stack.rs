@@ -1,8 +1,6 @@
-use std::ops::Deref;
-
 use crate::error::Result;
-
 use log::debug;
+use std::ops::Deref;
 
 const ENV_VAR: &str = "CNB_STACK_ID";
 

@@ -1,11 +1,10 @@
-use crate::error::{ErrorKind, Result};
-use crate::metadata::Metadata;
-
-use std::fs;
-use std::path::Path;
-
+use crate::{
+    error::{ErrorKind, Result},
+    metadata::Metadata,
+};
 use log::debug;
 use serde_derive::{Deserialize, Serialize};
+use std::{fs, path::Path};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Buildpack {
@@ -99,10 +98,9 @@ impl Stack {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempdir::TempDir;
-
     use failure::Error;
     use std::result::Result;
+    use tempdir::TempDir;
 
     #[test]
     fn stack_serializes_to_toml() {

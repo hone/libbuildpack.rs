@@ -1,8 +1,9 @@
-use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
-
 use serde::ser::{Serialize, SerializeSeq, Serializer};
 use serde_derive::Serialize as DeriveSerialize;
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
 #[derive(DeriveSerialize, Debug)]
 pub struct Launch {
