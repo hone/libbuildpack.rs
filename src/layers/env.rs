@@ -1,5 +1,6 @@
 use crate::env::Env;
 
+#[derive(Debug)]
 pub struct Envs {
     pub build: EnvSet,
     pub launch: EnvSet,
@@ -16,6 +17,7 @@ impl Envs {
     }
 }
 
+#[derive(Debug)]
 pub struct EnvSet {
     pub append: Env,
     pub r#override: Env,

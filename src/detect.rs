@@ -6,9 +6,12 @@ use crate::stack::Stack;
 use std::fs;
 use std::path::PathBuf;
 
+use log::debug;
+
 const FAIL_STATUS_CODE: i32 = 100;
 const PASS_STATUS_CODE: i32 = 0;
 
+#[derive(Debug)]
 pub struct Detect {
     pub stack: Stack,
     pub platform: Platform,
@@ -30,6 +33,7 @@ impl Detect {
     }
 
     pub fn fail(&self) -> i32 {
+        debug!("Detection failed. Exiting with {}", FAIL_STATUS_CODE);
         FAIL_STATUS_CODE
     }
 
@@ -38,10 +42,14 @@ impl Detect {
             let toml_string = toml::to_string(build_plan)?;
             fs::write(&self.build_plan_output, toml_string)?;
         }
+
+        debug!("Detection passed. Exiting with {}", PASS_STATUS_CODE);
+
         Ok(PASS_STATUS_CODE)
     }
 
     pub fn error(&self, code: i32) -> i32 {
+        debug!("Detection produced an error. Exiting with {}", code);
         code
     }
 }

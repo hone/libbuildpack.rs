@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 const ROOT_LAYER_FOLDER: &str = "/layers";
 const LAUNCH_TOML_FILE: &str = "launch.toml";
 
+#[derive(Debug)]
 pub struct Layers {
     root: PathBuf,
     pub launch: Launch,

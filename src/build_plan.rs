@@ -8,6 +8,7 @@ use serde::de::{Deserialize, Deserializer, MapAccess, Visitor};
 use serde::ser::{Serialize, SerializeMap, Serializer};
 use serde_derive::{Deserialize as DeriveDeserialize, Serialize as DeriveSerialize};
 
+#[derive(Debug)]
 pub struct BuildPlan(HashMap<String, Dependency>);
 
 impl BuildPlan {
@@ -111,7 +112,7 @@ impl<'de> Deserialize<'de> for BuildPlan {
     }
 }
 
-#[derive(DeriveSerialize, DeriveDeserialize)]
+#[derive(DeriveSerialize, DeriveDeserialize, Debug)]
 pub struct Dependency {
     pub version: String,
     #[serde(skip_serializing_if = "Metadata::is_empty")]

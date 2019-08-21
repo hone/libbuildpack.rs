@@ -4,7 +4,7 @@ use serde_derive::{Deserialize, Serialize};
 use toml::map::Map;
 use toml::value::Value;
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Metadata(Map<String, Value>);
 
 impl Deref for Metadata {

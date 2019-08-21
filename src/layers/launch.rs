@@ -4,7 +4,7 @@ use std::ops::{Deref, DerefMut};
 use serde::ser::{Serialize, SerializeSeq, Serializer};
 use serde_derive::Serialize as DeriveSerialize;
 
-#[derive(DeriveSerialize)]
+#[derive(DeriveSerialize, Debug)]
 pub struct Launch {
     processes: Processes,
 }
@@ -40,6 +40,7 @@ impl Launch {
     }
 }
 
+#[derive(Debug)]
 struct Processes(HashMap<String, Process>);
 
 impl Processes {
@@ -77,7 +78,7 @@ impl Serialize for Processes {
     }
 }
 
-#[derive(DeriveSerialize)]
+#[derive(DeriveSerialize, Debug)]
 pub struct Process {
     r#type: String,
     command: String,

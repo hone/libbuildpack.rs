@@ -8,10 +8,13 @@ use crate::layers::Layers;
 use crate::platform::Platform;
 use crate::stack::Stack;
 
+use log::debug;
+
 const SUCCESS_STATUS_CODE: i32 = 0;
 
 const BUILDPACK_FILE: &str = "buildpack.toml";
 
+#[derive(Debug)]
 pub struct Build {
     pub root: PathBuf,
     pub build_plan: BuildPlan,
@@ -46,10 +49,14 @@ impl Build {
 
         fs::write(&self.build_plan_output, &toml_string)?;
 
+        debug!("Build success. Exiting with {}", SUCCESS_STATUS_CODE);
+
         Ok(SUCCESS_STATUS_CODE)
     }
 
     pub fn fail(&self, code: i32) -> i32 {
+        debug!("Build failed. Exiting with {}", code);
+
         code
     }
 

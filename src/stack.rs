@@ -2,8 +2,11 @@ use std::ops::Deref;
 
 use crate::error::Result;
 
+use log::debug;
+
 const ENV_VAR: &str = "CNB_STACK_ID";
 
+#[derive(Debug)]
 pub struct Stack(String);
 
 impl Deref for Stack {
@@ -17,6 +20,8 @@ impl Deref for Stack {
 impl Stack {
     pub fn new() -> Result<Self> {
         let stack = std::env::var(ENV_VAR)?;
+
+        debug!("Stack: {}", stack);
 
         Ok(Stack { 0: stack })
     }

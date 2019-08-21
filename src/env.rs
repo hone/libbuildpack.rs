@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::env::VarError;
 use std::ffi::{OsStr, OsString};
 
+#[derive(Debug)]
 pub struct Env {
     env: HashMap<OsString, OsString>,
 }

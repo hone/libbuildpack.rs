@@ -2,7 +2,7 @@ use crate::metadata::Metadata;
 
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     #[serde(default)]
     pub build: bool,

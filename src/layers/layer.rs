@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use crate::error::Result;
 
+use log::debug;
 use toml;
 
 use super::{
@@ -15,6 +16,7 @@ const BUILD_ENV_FOLDER: &str = "env.build";
 const LAUNCH_ENV_FOLDER: &str = "env.launch";
 const SHARED_ENV_FOLDER: &str = "env";
 
+#[derive(Debug)]
 pub struct Layer {
     // path to the root directory for the layer
     root: PathBuf,
@@ -70,24 +72,39 @@ impl Layer {
         let path = self.config_path();
 
         if path.exists() {
-            let contents = fs::read_to_string(path)?;
+            let contents = fs::read_to_string(&path)?;
             self.config = toml::from_str(&contents)?;
+
+            debug!(
+                "Reading layer metadata: {} => {:#?}",
+                &path.display(),
+                self.config
+            );
+        } else {
+            debug!("Metadata {} does not exist", &path.display());
         }
 
         Ok(())
     }
 
     pub fn remove_metadata(&self) -> Result<()> {
-        if self.config_path().is_file() {
+        let path = self.config_path();
+
+        if path.is_file() {
             fs::remove_file(&self.config_path())?;
+        } else {
+            debug!("Metadata {} does not exist", &path.display());
         }
 
         Ok(())
     }
 
     pub fn write_profile_d(&self, name: &str, contents: &str) -> Result<()> {
-        fs::create_dir_all(&self.profile_d_path())?;
-        let file_path = &self.profile_d_path().join(name);
+        let profile_d_path = self.profile_d_path();
+
+        fs::create_dir_all(&profile_d_path)?;
+        let file_path = profile_d_path.join(name);
+        debug!("Writing profile: {} <= {}", &file_path.display(), contents);
         fs::write(&file_path, contents)?;
 
         Ok(())
@@ -112,16 +129,28 @@ impl Layer {
         fs::create_dir_all(&folder_path)?;
 
         for (key, value) in env.append_path.vars() {
+            debug!(
+                "Writing environment variable to {}: {} => {}",
+                folder, key, value
+            );
             fs::write(&folder_path.join(key), value)?;
         }
 
         for (key, value) in env.append.vars() {
             let filename = format!("{}.append", key);
+            debug!(
+                "Writing environment variable to {}: {} => {}",
+                folder, filename, value
+            );
             fs::write(&folder_path.join(filename), value)?;
         }
 
         for (key, value) in env.r#override.vars() {
             let filename = format!("{}.override", key);
+            debug!(
+                "Writing environment variable to {}: {} => {}",
+                folder, filename, value
+            );
             fs::write(&folder_path.join(filename), value)?;
         }
 

@@ -4,8 +4,11 @@ use crate::error::Result;
 use std::fs;
 use std::path::Path;
 
+use log::debug;
+
 const ENV_DIR: &str = "env";
 
+#[derive(Debug)]
 pub struct Platform {
     pub env: Env,
 }
@@ -28,6 +31,8 @@ impl Platform {
                 }
             }
         }
+
+        debug!("Platform environment variables: {:#?}", env);
 
         Ok(Self { env: env })
     }

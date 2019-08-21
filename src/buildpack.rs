@@ -4,9 +4,10 @@ use crate::metadata::Metadata;
 use std::fs;
 use std::path::Path;
 
+use log::debug;
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Buildpack {
     #[serde(rename = "buildpack")]
     pub info: Info,
@@ -24,11 +25,15 @@ impl Buildpack {
         name: N,
         version: V,
     ) -> Self {
-        Self {
+        let buildpack = Self {
             info: Info::new(id, name, version),
             stacks: Vec::new(),
             metadata: Metadata::new(),
-        }
+        };
+
+        debug!("Buildpack: {:#?}", buildpack);
+
+        buildpack
     }
 
     pub fn from_file<P: AsRef<Path>>(file: P) -> Result<Self> {
@@ -37,11 +42,13 @@ impl Buildpack {
             .map_err(|_| ErrorKind::FileNotFound(file_path.to_path_buf()))?;
         let buildpack: Buildpack = toml::from_str(&toml_string)?;
 
+        debug!("Buildpack: {:#?}", buildpack);
+
         Ok(buildpack)
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Info {
     pub id: String,
     pub name: String,
@@ -62,7 +69,7 @@ impl Info {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Stack {
     pub id: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
