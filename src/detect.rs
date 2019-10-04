@@ -1,6 +1,10 @@
 use crate::{build_plan::BuildPlan, error::Result, platform::Platform, stack::Stack};
 use log::debug;
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    io::{self, Read},
+    path::PathBuf,
+};
 
 const FAIL_STATUS_CODE: i32 = 100;
 const PASS_STATUS_CODE: i32 = 0;
@@ -17,10 +21,16 @@ impl Detect {
     pub fn new<P: Into<PathBuf>, L: Into<PathBuf>>(
         platform_dir: P,
         build_plan_output: L,
+        // need to use Box, so it can be `Sized` at compile time
+        plan_reader: Option<Box<dyn Read>>,
     ) -> Result<Self> {
+        let mut stdin_buf = String::new();
+        let mut reader = plan_reader.unwrap_or(Box::new(io::stdin()));
+        reader.read_to_string(&mut stdin_buf)?;
+        let build_plan: BuildPlan = toml::from_str(&stdin_buf)?;
         Ok(Self {
             stack: Stack::new()?,
-            build_plan: BuildPlan::new(),
+            build_plan: build_plan,
             platform: Platform::new(platform_dir.into())?,
             build_plan_output: build_plan_output.into(),
         })
@@ -93,8 +103,9 @@ mod tests {
         let platform_dir = tmpdir.path().join("platform");
         let build_plan = tmpdir.path().join("build_plan");
         fs::create_dir_all(&platform_dir)?;
+        let stdin = b"";
 
-        let detect = Detect::new(platform_dir, build_plan);
+        let detect = Detect::new(platform_dir, build_plan, Some(Box::new(&stdin[..])));
 
         println!("{:?}", std::env::var_os("CNB_STACK_ID"));
         assert!(detect.is_err());
@@ -105,7 +116,12 @@ mod tests {
     #[test]
     fn it_writes_build_plan_on_pass() -> Result<(), Error> {
         let setup = setup()?;
-        let detect = Detect::new(setup.platform_dir, setup.build_plan)?;
+        let stdin = b"";
+        let detect = Detect::new(
+            setup.platform_dir,
+            setup.build_plan,
+            Some(Box::new(&stdin[..])),
+        )?;
         reset_cnb_stack_id(setup.old_env_var);
 
         let mut build_plan = BuildPlan::new();

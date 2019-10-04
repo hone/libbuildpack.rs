@@ -9,6 +9,7 @@ use crate::{
 use log::debug;
 use std::{
     fs,
+    io::{self, Read},
     path::{Path, PathBuf},
 };
 
@@ -32,12 +33,18 @@ impl Build {
         layers: L,
         platform: P,
         plan: A,
+        // need to use Box, so it can be `Sized` at compile time
+        plan_reader: Option<Box<dyn Read>>,
     ) -> Result<Self> {
         let buildpack = Buildpack::from_file(Self::find_toml()?)?;
+        let mut stdin_buf = String::new();
+        let mut reader = plan_reader.unwrap_or(Box::new(io::stdin()));
+        reader.read_to_string(&mut stdin_buf)?;
+        let build_plan: BuildPlan = toml::from_str(&stdin_buf)?;
 
         Ok(Self {
             root: std::env::current_dir()?,
-            build_plan: BuildPlan::new(),
+            build_plan: build_plan,
             build_plan_output: plan.into(),
             buildpack: buildpack,
             layers: Layers::new(layers.as_ref()),
@@ -86,8 +93,16 @@ mod tests {
     use std::result::Result;
     use tempdir::TempDir;
 
-    #[test]
-    fn build_succeeds_writes_a_build_plan() -> Result<(), Error> {
+    struct Setup {
+        pub buildpack_toml_path: PathBuf,
+        pub layers_dir: PathBuf,
+        pub platform_dir: PathBuf,
+        pub build_plan_path: PathBuf,
+        pub old_env_var: Option<std::ffi::OsString>,
+        _tmpdir: TempDir,
+    }
+
+    fn setup() -> Result<Setup, Error> {
         let buildpack_toml_path = Build::find_toml()?;
         fs::write(
             &buildpack_toml_path,
@@ -111,9 +126,38 @@ run-images = ["heroku/heroku-18"]
         fs::create_dir_all(&layers_dir)?;
         fs::create_dir_all(&platform_dir)?;
 
+        let old_env_var = std::env::var_os("CNB_STACK_ID");
         std::env::set_var("CNB_STACK_ID", "aspen");
-        let build = Build::new(&layers_dir, &platform_dir, build_plan)?;
-        std::env::remove_var("CNB_STACK_ID");
+
+        Ok(Setup {
+            buildpack_toml_path: buildpack_toml_path,
+            layers_dir: layers_dir,
+            platform_dir: platform_dir,
+            build_plan_path: build_plan,
+            old_env_var: old_env_var,
+            _tmpdir: temp_dir,
+        })
+    }
+
+    fn reset_cnb_stack_id(old_env_var: Option<std::ffi::OsString>) {
+        if let Some(env_var) = old_env_var {
+            std::env::set_var("CNB_STACK_ID", env_var);
+        } else {
+            std::env::remove_var("CNB_STACK_ID")
+        }
+    }
+
+    #[test]
+    fn build_succeeds_writes_a_build_plan() -> Result<(), Error> {
+        let setup = setup()?;
+        let stdin = b"";
+        let build = Build::new(
+            &setup.layers_dir,
+            &setup.platform_dir,
+            &setup.build_plan_path,
+            Some(Box::new(&stdin[..])),
+        )?;
+        reset_cnb_stack_id(setup.old_env_var);
 
         let mut build_plan = BuildPlan::new();
         build_plan.insert("ruby", Dependency::new("2.6.3"));
@@ -126,7 +170,33 @@ run-images = ["heroku/heroku-18"]
         let written_build_plan: BuildPlan = toml::from_str(&string)?;
         assert_eq!(written_build_plan.get("ruby").unwrap().version, "2.6.3");
 
-        fs::remove_file(&buildpack_toml_path)?;
+        fs::remove_file(&setup.buildpack_toml_path)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn it_parses_build_plan() -> Result<(), Error> {
+        let setup = setup()?;
+        let stdin = r#"
+[ruby]
+version = "2.6.5"
+    "#
+        .as_bytes();
+
+        let build = Build::new(
+            &setup.layers_dir,
+            &setup.platform_dir,
+            &setup.build_plan_path,
+            Some(Box::new(&stdin[..])),
+        );
+
+        reset_cnb_stack_id(setup.old_env_var);
+
+        assert!(build.is_ok());
+        if let Ok(build) = build {
+            assert_eq!(build.build_plan.get("ruby").unwrap().version, "2.6.5",);
+        }
 
         Ok(())
     }
